@@ -40,7 +40,7 @@ def DetailedCGParser(filepath, archive):
     calculation = CGCalculation()
     run.calculation.append(calculation)
     
-    with open(str(filepath.parent) + r'/in_cg.lmp') as in_file:
+    with open(str(filepath.parent) + r'/in.*cg.lmp') as in_file:
         cgsettings = CGSettings()
         calculation.settings = cgsettings
         
