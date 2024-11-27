@@ -1,3 +1,7 @@
+# NOMAD parser for Ka Chun Chan's coarse-grained simulations. Mainfile must contain the word "in" and end with "cg.lmp".
+#
+
+
 from typing import (
     TYPE_CHECKING,
 )
@@ -40,7 +44,7 @@ def DetailedCGParser(filepath, archive):
     calculation = CGCalculation()
     run.calculation.append(calculation)
     
-    with open(str(filepath.parent) + r'/in.*cg.lmp') as in_file:
+    with open(str(filepath.parent) + r'in.*cg\.lmp') as in_file:
         cgsettings = CGSettings()
         calculation.settings = cgsettings
         
