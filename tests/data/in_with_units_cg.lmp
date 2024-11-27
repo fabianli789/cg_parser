@@ -1,0 +1,142 @@
+#######################################################################
+#######################################################################
+#######################################################################
+### An input script file for                                        ###
+### Anisotropic Mori-Zwanzig DPD model	                            ###
+###                                                                 ###
+### Case     : Anisotropic CG Benzene                               ###
+#######################################################################
+#######################################################################
+#######################################################################
+
+#**********************************************************************
+#**********************************************************************
+# Define all the variables
+# ndim             : dimension of the system 
+# Temp             : temperature of the system (unit: K)
+# seed             : seed for random number generator
+# rc_global        : global cutoff radius (unit: Ang)
+# skin             : surround skin for neighbor list (unit: Ang)
+#
+# dw_c             : softness of conservative force
+# l_c			   : length of particle in conservative force (unit: Ang)
+# d_c			   : width of particle in conservative force (unit: Ang)
+# esp0_c		   : well-depth of cross configuration in conservative force (unit: kcal/mol)
+# esp_rat_c		   : well-depth ratio of face-to-face and side-to-side in conservative force
+# dw_f             : softness of the frictional force
+# l_f			   : length of particle in frictional force (unit: Ang)
+# d_f			   : width of particle in frictional force (unit: Ang)
+# ld_f			   : geometry ratio of particle in frictional force
+# esp0_f		   : well-depth of cross configuration in frictional force (unit: kcal/mol)
+# esp_rat_f		   : well-depth ratio of face-to-face and side-to-side in frictional force
+#
+# relax            : timestep for relax the system
+# ntime            : total number of timestep for the simulation
+# dt               : timestep (unit:fs)
+# thermo           : frequency for screen print
+# verlet           : factor for integration
+#**********************************************************************
+variable  ndim      equal 3
+variable  Temp	    equal 300
+variable  seed      equal 2654868
+variable  rc_global equal 10.0
+variable  skin 	    equal 0.5*${rc_global}
+
+variable  dw_c	    equal 0.92188936
+variable  l_c       equal 2.28750543
+variable  d_c       equal 4.30850483
+variable  esp0_c    equal 1.19053889
+variable  esp_rat_c equal 2.67475403
+variable  dw_f      equal 0.384
+variable  l_f       equal 3.767
+variable  d_f       equal 4.493
+variable  ld_f      equal 1.000
+variable  esp0_f    equal 1.550
+variable  esp_rat_f equal 0.479
+
+variable  relax     equal 4000
+variable  ntime     equal 20000
+variable  thermo    equal 100
+
+variable  dt	    equal 5
+variable  verlet    equal 0.5
+#**********************************************************************
+# End of the definition of variables
+#**********************************************************************
+
+#**********************************************************************
+# Start of defining the particle system
+#**********************************************************************
+units	    	real
+dimension   	${ndim}
+boundary    	p p p
+neighbor		${skin} bin
+neigh_modify    every 1 delay 0 check yes
+
+#**********************************************************************
+# Use the atom_style: ellipsoid (enable acg force-field)
+#**********************************************************************
+atom_style  	ellipsoid
+
+#**********************************************************************
+# 1: Read geometry
+#**********************************************************************
+read_data       data_quat.in
+
+#**********************************************************************
+# Use the new-defined pair_style: acg
+# acg requires 3 parameters : Temp cut_global seed
+#**********************************************************************
+pair_style      acg ${Temp} ${rc_global} ${seed} 
+
+#**********************************************************************
+# Define the coefficients for pair-wise interactions
+# acg coefficient requires 14 parameters :
+# itype jtype parameters_for_conservative_force(5 terms) parameters_for_frictional_force(6 terms) cutoff
+#**********************************************************************
+pair_coeff      1 1 ${dw_c} ${l_c} ${d_c} ${esp0_c} ${esp_rat_c} ${dw_f} ${l_f} ${d_f} ${ld_f} ${esp0_f} ${esp_rat_f} ${rc_global}
+
+#----------------------------------------------------------------------
+# thermodynamics
+#----------------------------------------------------------------------
+compute        mythermo all temp
+thermo         ${thermo}
+thermo_modify  temp mythermo
+thermo_modify  flush yes
+
+
+#----------------------------------------------------------------------
+# Integration of particles' position, velocity
+# mvv/acg requires 1 parameter: verlet
+#----------------------------------------------------------------------
+fix integrate   all mvv/acg ${verlet}
+
+
+#**********************************************************************
+# Run simulation 
+
+compute orient all property/atom quati quatj quatk quatw
+compute diameter all property/atom shapex shapey shapez
+dump 1 all custom 100 ellipsoid.dump id type x y z c_orient[1] c_orient[2] c_orient[3] c_orient[4] c_diameter[1] c_diameter[2] c_diameter[3]
+
+timestep        ${dt}
+run	            ${relax}
+reset_timestep  0
+
+
+#----------------------------------------------------------------------
+# compute the VACF
+#----------------------------------------------------------------------
+fix     vacf    all vacf/atom 0 10 10000
+
+#**********************************************************************
+timestep        ${dt}
+run	            ${ntime}
+#**********************************************************************
+
+#######################################################################
+###
+### Input file Ends !
+### 
+#######################################################################
+
